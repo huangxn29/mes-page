@@ -16,9 +16,11 @@
 7. [分支保护规则](#7-分支保护规则)
 8. [发布流程](#8-发布流程)
 9. [热修复流程](#9-热修复流程)
-10. [CI/CD 推荐配置](#10-cicd-推荐配置)
-11. [Git 本地配置建议](#11-git-本地配置建议)
-12. [常用命令速查](#12-常用命令速查)
+10. [Multica 平台集成](#10-multica-平台集成)
+11. [Multica + GitHub 端到端工作流](#11-multica--github-端到端工作流)
+12. [CI/CD 推荐配置](#12-cicd-推荐配置)
+13. [Git 本地配置建议](#13-git-本地配置建议)
+14. [常用命令速查](#14-常用命令速查)
 
 ---
 
@@ -457,9 +459,196 @@ hotfix/*   →  Pull Request  →  master  (同时反向合并到 develop)
 
 ---
 
-## 10. CI/CD 推荐配置
+## 10. Multica 平台集成
 
-### 10.1 推荐的 GitHub Actions 工作流
+Multica 是团队协作与自动化平台，与 GitHub 深度配合形成完整的工作流。
+
+### 10.1 Multica Issue ↔ GitHub 分支关联
+
+每个代码变更应从 Multica Issue 开始，形成可追溯的链路：
+
+```
+Multica Issue (MES-42)
+    ↓  创建 feature 分支
+GitHub: feature/mes-page-add-work-order-page
+    ↓  提交代码，Commit 中引用 Multica Issue ID
+Commit: "feat(mes-page): add work order detail page"
+    ↓  创建 PR，描述中关联 Multica Issue
+GitHub PR → "Closes MES-42"
+    ↓  PR 合并后
+Multica Issue → 通过 CLI 更新状态
+```
+
+**命名关联规则：**
+- feature 分支：`feature/<multica-issue-key>-<描述>`，如 `feature/mes-42-work-order-page`
+- commit 正文：通过 `Closes MES-42` 或 `Fixes MES-42` 引用 Issue
+- PR 描述：在 "关联 Issue" 部分填写 Multica Issue 链接
+
+### 10.2 Multica CLI 与 GitHub 配合
+
+Multica CLI 提供的关键命令贯穿开发全流程：
+
+| 阶段 | 命令 | 说明 |
+|------|------|------|
+| 开始任务 | `multica issue get <issue-id>` | 查看 Issue 详情和描述 |
+| 获取代码 | `multica repo checkout <repo-url> [--ref <分支>]` | 检出仓库到工作目录 |
+| 更新进度 | `multica issue status <id> <status>` | 切换 Issue 状态（todo→in_progress→in_review→done） |
+| 讨论交流 | `multica issue comment add <id>` | 在 Issue 上添加评论 |
+| 查看上下文 | `multica issue comment list <id>` | 查看 Issue 评论区全部历史 |
+| PR 跟踪 | `multica issue metadata set <id> --key pr_url --value <url>` | 将 PR 链接挂到 Issue 上 |
+| 完成标记 | `multica issue status <id> done` | 任务完成时标记 |
+
+### 10.3 使用 Multica 管理 Issue 元数据
+
+Multica Issue 支持 KV 元数据，用于跟踪关键状态。推荐在以下时机写入元数据：
+
+```bash
+# 创建 PR 后
+multica issue metadata set MES-42 --key pr_url --value https://github.com/huangxn29/mes-page/pull/42
+multica issue metadata set MES-42 --key pr_number --value 42
+multica issue metadata set MES-42 --key pipeline_status --value waiting_review
+
+# 部署后
+multica issue metadata set MES-42 --key deploy_url --value https://staging.example.com
+multica issue metadata set MES-42 --key pipeline_status --value deployed
+
+# 合并后清理
+multica issue metadata delete MES-42 --key pipeline_status
+```
+
+### 10.4 Multica Agent 自动化
+
+Multica Agent 可以自动执行 GitHub 相关操作：
+
+**场景 1：Agent 自动创建 PR**
+当 Agent 完成代码变更后，可自动提交并创建 PR：
+```bash
+git add -A
+git commit -m "feat(mes-page): add work order detail page"
+git push -u origin feature/mes-42-work-order-page
+# Agent 通过 gh CLI 或 GitHub API 创建 PR
+```
+
+**场景 2：Agent 执行 Code Review**
+Agent 可作为自动化 Reviewer，检查 PR 中的代码质量和安全性。
+
+**场景 3：Agent 更新 Issue 状态**
+Agent 在完成阶段性工作后自动更新 Issue 状态：
+```bash
+multica issue status MES-42 in_review
+```
+
+---
+
+## 11. Multica + GitHub 端到端工作流
+
+### 11.1 完整开发流程
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   Multica 平台                        │
+│  ┌──────────┐   ┌──────────┐   ┌──────────────────┐ │
+│  │ 创建     │   │ Agent    │   │ 跟踪 & 更新      │ │
+│  │ Issue    │ → │ 分配并   │ → │ 状态、元数据      │ │
+│  │ (描述)   │   │ 开始工作  │   │ PR URL 等        │ │
+│  └──────────┘   └─────┬────┘   └──────────────────┘ │
+└────────────────────────┼────────────────────────────┘
+                         │
+┌────────────────────────┼────────────────────────────┐
+│                   GitHub                             │
+│  ┌─────────────────────┘                            │
+│  │   ┌────────────────┐   ┌──────────┐   ┌───────┐ │
+│  │   │ feature/ 分支   │ → │ PR →     │ → │ Merge │ │
+│  │   │ 开发 & 提交     │   │ develop  │   │ & 删除│ │
+│  │   └────────────────┘   └──────────┘   └───────┘ │
+└─────────────────────────────────────────────────────┘
+```
+
+### 11.2 分步操作
+
+#### Step 1：在 Multica 中认领 Issue
+
+```bash
+# 查看 Issue 详情
+multica issue get MES-42 --output json
+
+# 查看评论了解上下文
+multica issue comment list MES-42 --recent 10
+
+# 标记为开发中
+multica issue status MES-42 in_progress
+```
+
+#### Step 2：检出代码并创建功能分支
+
+```bash
+# 通过 Multica 检出仓库（自动创建工作副本）
+multica repo checkout https://github.com/huangxn29/mes-page.git
+
+# 基于 develop 创建 feature 分支
+git checkout develop
+git pull
+git checkout -b feature/mes-42-work-order-page
+```
+
+#### Step 3：开发与提交
+
+```bash
+# 开发过程中保持同步
+git fetch origin
+git rebase origin/develop
+
+# 提交（Commit 中引用 Multica Issue）
+git add .
+git commit -m "feat(mes-page): add work order detail page
+
+Implement work order detail view with status timeline.
+Includes print preview and export to PDF.
+
+Closes MES-42"
+
+# 推送
+git push -u origin feature/mes-42-work-order-page
+```
+
+#### Step 4：创建 Pull Request
+
+在 GitHub 上创建 PR 后，同步更新 Multica Issue：
+
+```bash
+# 记录 PR 链接到 Issue 元数据
+multica issue metadata set MES-42 --key pr_url --value https://github.com/huangxn29/mes-page/pull/42
+
+# 更新 Issue 状态
+multica issue status MES-42 in_review
+
+# 在 Issue 中通知 Reviewers
+multica issue comment add MES-42 --content "PR created: https://github.com/huangxn29/mes-page/pull/42"
+```
+
+#### Step 5：合并后清理
+
+```bash
+# 更新 Issue 状态为完成
+multica issue status MES-42 done
+```
+
+### 11.3 状态映射
+
+| 开发阶段 | Multica Issue 状态 | GitHub 状态 | 元数据 |
+|----------|-------------------|-------------|--------|
+| 待处理 | `todo` | — | — |
+| 开发中 | `in_progress` | feature 分支已推送 | — |
+| 等待审查 | `in_review` | PR 已创建，待 Review | `pr_url`, `pr_number` |
+| 已合并 | `done` | PR 已合并，分支已删除 | — |
+| 已部署 | `done` | Tag 已推送 | `deploy_url` |
+| 阻塞 | `blocked` | — | `blocked_reason` |
+
+---
+
+## 12. CI/CD 推荐配置
+
+### 12.1 推荐的 GitHub Actions 工作流
 
 #### PR 验证（Pull Request 触发）
 
@@ -519,7 +708,7 @@ jobs:
           generate_release_notes: true
 ```
 
-### 10.2 Commitlint 配置
+### 12.2 Commitlint 配置
 
 ```javascript
 // commitlint.config.js
@@ -540,9 +729,9 @@ module.exports = {
 
 ---
 
-## 11. Git 本地配置建议
+## 13. Git 本地配置建议
 
-### 11.1 推荐全局配置
+### 13.1 推荐全局配置
 
 ```bash
 # 用户信息
@@ -576,7 +765,7 @@ git config --global pull.rebase true
 git config --global rebase.autoStash true
 ```
 
-### 11.2 提交信息模板（可选）
+### 13.2 提交信息模板（可选）
 
 将以下内容保存为 `~/.gitmessage`：
 
@@ -590,7 +779,7 @@ Closes #
 
 配置：`git config --global commit.template ~/.gitmessage`
 
-### 11.3 全局 .gitignore 建议
+### 13.3 全局 .gitignore 建议
 
 ```bash
 # 设置全局 gitignore
@@ -624,9 +813,9 @@ dist/
 
 ---
 
-## 12. 常用命令速查
+## 14. 常用命令速查
 
-### 12.1 新功能开发
+### 14.1 新功能开发
 
 ```bash
 # 从最新的 develop 创建 feature 分支
@@ -648,7 +837,7 @@ git push -u origin feature/mes-page-add-work-order-page
 # → 在 GitHub 上创建 PR
 ```
 
-### 12.2 发布
+### 14.2 发布
 
 ```bash
 # 创建 release 分支
@@ -676,7 +865,7 @@ git push origin v1.2.0
 # → 创建 GitHub Release
 ```
 
-### 12.3 热修复
+### 14.3 热修复
 
 ```bash
 # 从 master 创建 hotfix 分支
@@ -704,7 +893,7 @@ git push
 # 或创建 PR hotfix/login-npe → develop
 ```
 
-### 12.4 同步与清理
+### 14.4 同步与清理
 
 ```bash
 # 更新本地分支信息
