@@ -461,188 +461,193 @@ hotfix/*   →  Pull Request  →  master  (同时反向合并到 develop)
 
 ## 10. Multica 平台集成
 
-Multica 是团队协作与自动化平台，与 GitHub 深度配合形成完整的工作流。
+> 参考：[Multica 官方文档](https://github.com/multica-ai/multica) · [CLI 命令参考](https://github.com/multica-ai/multica/blob/main/CLI_AND_DAEMON.md)
 
-### 10.1 Multica Issue ↔ GitHub 分支关联
+Multica 是开源托管 Agent 平台，将 AI Agent 变成真正的团队成员。以下内容基于 Multica 官方 GitHub App 集成及 CLI 规范制定。
 
-每个代码变更应从 Multica Issue 开始，形成可追溯的链路：
+### 10.1 官方 GitHub App 集成（PR ↔ Issue 自动关联）
+
+Multica 提供 **GitHub App** 实现 PR 与 Issue 的双向自动关联。这是 Multica 官方的标准集成方式，无需手动维护关联。
+
+**工作原理：** 安装 Multica GitHub App 并授权仓库后，App 会自动扫描 PR 的以下位置，检测 Multica Issue 编号：
+
+| 扫描位置 | 示例 | 自动关联 |
+|----------|------|---------|
+| **PR 头部分支名** | `fix-MES-42` 或 `feature/MES-42-work-order` | ✅ |
+| **PR 标题** | `fix: MES-42 修复工单创建` | ✅ |
+| **PR 正文** | `Closes MES-42` 或 `Fixes MES-42` | ✅ |
+| **Commit message** | `feat: add work order (MES-42)` | ❌ 不支持 |
+| **PR 评论** | `MES-42 待处理` | ❌ 不支持 |
+
+**关键规则（官方）：**
+- Issue 编号前缀自动限定本工作区（如 `MES-`），不同工作区的 Issue 不会误关联
+- 一个 PR 可以关联**多个** Issue（在 PR 正文中列出多个编号）
+- 一个 Issue 也可被**多个** PR 关联
+
+**自动流转：**
+- **仅当一个 Issue 关联的所有 PR 都已合并**后，Issue 才会自动转为 **Done** 状态（官方 `fix: only auto-close issue after all linked PRs resolve`）
+- 无需手动运行 `multica issue status MES-42 done`
+
+### 10.2 官方 Issue → Agent → GitHub 工作流
+
+Multica 官方的核心工作流是：
 
 ```
-Multica Issue (MES-42)
-    ↓  创建 feature 分支
-GitHub: feature/mes-page-add-work-order-page
-    ↓  提交代码，Commit 中引用 Multica Issue ID
-Commit: "feat(mes-page): add work order detail page"
-    ↓  创建 PR，描述中关联 Multica Issue
-GitHub PR → "Closes MES-42"
-    ↓  PR 合并后
-Multica Issue → 通过 CLI 更新状态
+创建 Issue → 分配给 Agent → Agent 自主工作 → 交付代码 → 创建 PR → PR 关联 Issue → 合并后自动关闭
 ```
 
-**命名关联规则：**
-- feature 分支：`feature/<multica-issue-key>-<描述>`，如 `feature/mes-42-work-order-page`
-- commit 正文：通过 `Closes MES-42` 或 `Fixes MES-42` 引用 Issue
-- PR 描述：在 "关联 Issue" 部分填写 Multica Issue 链接
+根据官方 README：Agent 是 **"一级团队成员"**，会被分配 Issue，自主执行以下操作：
+- "pick up the work（接手工作）"
+- "write code（编写代码）"
+- "report blockers（报告阻塞）"
+- "update statuses（更新状态）"
 
-### 10.2 Multica CLI 与 GitHub 配合
+### 10.3 Multica CLI 官方命令参考
 
-Multica CLI 提供的关键命令贯穿开发全流程：
+根据 Multica CLI 官方文档，开发全流程涉及的官方命令：
 
-| 阶段 | 命令 | 说明 |
-|------|------|------|
-| 开始任务 | `multica issue get <issue-id>` | 查看 Issue 详情和描述 |
-| 获取代码 | `multica repo checkout <repo-url> [--ref <分支>]` | 检出仓库到工作目录 |
-| 更新进度 | `multica issue status <id> <status>` | 切换 Issue 状态（todo→in_progress→in_review→done） |
-| 讨论交流 | `multica issue comment add <id>` | 在 Issue 上添加评论 |
-| 查看上下文 | `multica issue comment list <id>` | 查看 Issue 评论区全部历史 |
-| PR 跟踪 | `multica issue metadata set <id> --key pr_url --value <url>` | 将 PR 链接挂到 Issue 上 |
-| 完成标记 | `multica issue status <id> done` | 任务完成时标记 |
+| 阶段 | 官方命令 | 说明 |
+|------|----------|------|
+| 安装工具 | `multica setup` | 一键配置、认证、启动守护进程 |
+| 查看任务 | `multica issue get <issue-id> --output json` | 获取 Issue 详情 |
+| 指派任务 | `multica issue assign <id> --to "Agent Name"` | 将 Issue 指派给 Agent |
+| 切换状态 | `multica issue status <id> <status>` | 有效状态：`backlog` → `todo` → `in_progress` → `in_review` → `done` → `blocked` → `cancelled` |
+| 查看讨论 | `multica issue comment list <id> --thread <id> --tail 30` | 按线程查看评论 |
+| 参与讨论 | `multica issue comment add <id> --parent <id> --content-file <path>` | 回复特定评论 |
+| 元数据跟踪 | `multica issue metadata set <id> --key <k> --value <v>` | 写入 KV 元数据 |
+| 创建子任务 | `multica issue create --parent <id> --title "..." --status todo` | 创建子 Issue |
 
-### 10.3 使用 Multica 管理 Issue 元数据
+### 10.4 官方 Autopilot 自动化
 
-Multica Issue 支持 KV 元数据，用于跟踪关键状态。推荐在以下时机写入元数据：
+Multica 提供 **Autopilot** 机制实现定期自动化任务：
 
-```bash
-# 创建 PR 后
-multica issue metadata set MES-42 --key pr_url --value https://github.com/huangxn29/mes-page/pull/42
-multica issue metadata set MES-42 --key pr_number --value 42
-multica issue metadata set MES-42 --key pipeline_status --value waiting_review
+| 触发方式 | 说明 | 适用场景 |
+|----------|------|----------|
+| **Cron 定时** | 按 cron 表达式定期触发 | 日报、周报、定期巡检 |
+| **Webhook 触发** | 外部事件触发 | GitHub 事件联动 |
+| **手动触发** | 人工调用 `multica autopilot trigger <id>` | 按需执行 |
 
-# 部署后
-multica issue metadata set MES-42 --key deploy_url --value https://staging.example.com
-multica issue metadata set MES-42 --key pipeline_status --value deployed
+Autopilot 会自动创建 Issue 并分配给指定 Agent，Agent 按照预设指令执行任务。
 
-# 合并后清理
-multica issue metadata delete MES-42 --key pipeline_status
-```
+### 10.5 官方 Squad 与 Skills 机制
 
-### 10.4 Multica Agent 自动化
+**Squad（小队）：** 官方支持多个 Agent 组成由 Leader Agent 带队的小队。任务分配给小队后，Leader 判断 "谁最适合接手"。通过 `@前端组` 风格引用，而非逐个 @成员。
 
-Multica Agent 可以自动执行 GitHub 相关操作：
-
-**场景 1：Agent 自动创建 PR**
-当 Agent 完成代码变更后，可自动提交并创建 PR：
-```bash
-git add -A
-git commit -m "feat(mes-page): add work order detail page"
-git push -u origin feature/mes-42-work-order-page
-# Agent 通过 gh CLI 或 GitHub API 创建 PR
-```
-
-**场景 2：Agent 执行 Code Review**
-Agent 可作为自动化 Reviewer，检查 PR 中的代码质量和安全性。
-
-**场景 3：Agent 更新 Issue 状态**
-Agent 在完成阶段性工作后自动更新 Issue 状态：
-```bash
-multica issue status MES-42 in_review
-```
+**Skills（技能）：** Multica 官方技能系统支持将解决方案沉淀为团队可复用的技能。典型技能包括：
+- 部署流程
+- 数据库迁移
+- **代码审查（Code Review）**—— 官方文档明确列出此场景
+- **创建 PR** —— Agent 可自动创建 PR 并推送
 
 ---
 
-## 11. Multica + GitHub 端到端工作流
+## 11. Multica + GitHub 官方端到端工作流
 
-### 11.1 完整开发流程
+### 11.1 官方推荐的开发流程
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   Multica 平台                        │
-│  ┌──────────┐   ┌──────────┐   ┌──────────────────┐ │
-│  │ 创建     │   │ Agent    │   │ 跟踪 & 更新      │ │
-│  │ Issue    │ → │ 分配并   │ → │ 状态、元数据      │ │
-│  │ (描述)   │   │ 开始工作  │   │ PR URL 等        │ │
-│  └──────────┘   └─────┬────┘   └──────────────────┘ │
-└────────────────────────┼────────────────────────────┘
-                         │
-┌────────────────────────┼────────────────────────────┐
-│                   GitHub                             │
-│  ┌─────────────────────┘                            │
-│  │   ┌────────────────┐   ┌──────────┐   ┌───────┐ │
-│  │   │ feature/ 分支   │ → │ PR →     │ → │ Merge │ │
-│  │   │ 开发 & 提交     │   │ develop  │   │ & 删除│ │
-│  │   └────────────────┘   └──────────┘   └───────┘ │
-└─────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                    Multica 平台                            │
+│                                                           │
+│  1. 创建 Issue ──→ 2. 分配给 Agent ──→ 3. Agent 自主执行  │
+│     (描述需求)       (multica issue assign)   (写代码、    │
+│                                               提PR、汇报)  │
+│         ↑                                        │        │
+│         │  GitHub App 检测到 PR 关联 Issue       │        │
+│         │  ↕                                      ↓        │
+│  5. Issue 自动 Done ── 4. PR 合并到 develop ── PR 创建    │
+│     (所有关联PR合并后)    (Code Review通过)   (关联Issue)  │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ### 11.2 分步操作
 
-#### Step 1：在 Multica 中认领 Issue
+#### Step 1：在 Multica 中创建并分配 Issue
 
 ```bash
-# 查看 Issue 详情
-multica issue get MES-42 --output json
+# 创建 Issue（或在 Web 看板上创建）
+multica issue create \
+  --title "Add work order detail page" \
+  --description "需要实现工单详情页面..." \
+  --priority high \
+  --status todo
 
-# 查看评论了解上下文
-multica issue comment list MES-42 --recent 10
+# 指派给 Agent
+multica issue assign MES-42 --to "Agent Name"
 
-# 标记为开发中
-multica issue status MES-42 in_progress
+# Agent 会自动接手任务并开始工作
 ```
 
-#### Step 2：检出代码并创建功能分支
+#### Step 2：Agent 开始工作
+
+Agent 被分配 Issue 后会自动：
+1. 通过 `multica issue get MES-42 --output json` 查看详情
+2. 通过 `multica repo checkout <repo-url>` 检出仓库
+3. 创建 feature 分支
+4. 编写代码、提交、推送
+
+#### Step 3：创建 PR（GitHub App 自动关联）
+
+Agent 创建 PR 时，GitHub App **自动扫描**以下位置建立关联：
 
 ```bash
-# 通过 Multica 检出仓库（自动创建工作副本）
-multica repo checkout https://github.com/huangxn29/mes-page.git
+# 推荐的关联方式 1：分支名包含 Issue 编号
+git checkout -b feature/MES-42-work-order-page   # ← GitHub App 自动识别
 
-# 基于 develop 创建 feature 分支
-git checkout develop
-git pull
-git checkout -b feature/mes-42-work-order-page
+# 推荐的关联方式 2：PR 标题包含 Issue 编号
+# PR Title: "feat(mes-page): add work order detail page - MES-42"  ← GitHub App 自动识别
+
+# 推荐的关联方式 3：PR 正文包含 Closes 关键字
+# PR Body: "Closes MES-42"  ← GitHub App 自动识别
 ```
 
-#### Step 3：开发与提交
+> **注意：** 根据 Multica 官方规范，Commit Message 中的 Issue 编号**不会**被自动关联。请确保在分支名、PR 标题或 PR 正文中引用 Issue 编号。
+
+#### Step 4：Code Review 与合并
 
 ```bash
-# 开发过程中保持同步
-git fetch origin
-git rebase origin/develop
+# 在 GitHub 上完成 Code Review
 
-# 提交（Commit 中引用 Multica Issue）
-git add .
-git commit -m "feat(mes-page): add work order detail page
+# Agent 也可以执行 Code Review（Multica Skills 机制）
+# Reviewer 通过后合并 PR
 
-Implement work order detail view with status timeline.
-Includes print preview and export to PDF.
-
-Closes MES-42"
-
-# 推送
-git push -u origin feature/mes-42-work-order-page
+# PR 合并后，GitHub App 自动检测并流转 Issue
 ```
 
-#### Step 4：创建 Pull Request
+#### Step 5：Issue 自动关闭
 
-在 GitHub 上创建 PR 后，同步更新 Multica Issue：
+Multica 官方规则：**当关联一个 Issue 的所有 PR 都已合并**，该 Issue 自动转入 **Done** 状态。无需手动运行 `multica issue status MES-42 done`。
+
+### 11.3 官方状态映射
+
+| 开发阶段 | Multica Issue 状态 | GitHub 状态 | 自动机制 |
+|----------|-------------------|-------------|----------|
+| 待处理 | `backlog` / `todo` | — | — |
+| 正在进行 | `in_progress` | feature 分支已推送 | Agent 自动切换状态 |
+| 等待审查 | `in_review` | PR 已创建（关联 Issue） | PR 创建时 Agent 可切换 |
+| 已合并 | `done` ✅ | PR 已合并 | **GitHub App 自动**（所有 PR 合并后） |
+| 已部署 | `done` ✅ | Tag 已推送 | — |
+| 阻塞 | `blocked` | — | Agent 可报告阻塞 |
+
+### 11.4 补充场景：Autopilot 定期任务
+
+对于周期性任务（如每日巡检、周报生成）：
 
 ```bash
-# 记录 PR 链接到 Issue 元数据
-multica issue metadata set MES-42 --key pr_url --value https://github.com/huangxn29/mes-page/pull/42
+# 创建 Autopilot
+multica autopilot create \
+  --title "Daily codebase health check" \
+  --description "每日检查代码库健康状况" \
+  --agent "Agent Name" \
+  --mode create_issue
 
-# 更新 Issue 状态
-multica issue status MES-42 in_review
-
-# 在 Issue 中通知 Reviewers
-multica issue comment add MES-42 --content "PR created: https://github.com/huangxn29/mes-page/pull/42"
+# 添加 Cron 触发器（每天早上 9 点）
+multica autopilot trigger-add <autopilot-id> \
+  --cron "0 9 * * *" \
+  --timezone "Asia/Shanghai"
 ```
 
-#### Step 5：合并后清理
-
-```bash
-# 更新 Issue 状态为完成
-multica issue status MES-42 done
-```
-
-### 11.3 状态映射
-
-| 开发阶段 | Multica Issue 状态 | GitHub 状态 | 元数据 |
-|----------|-------------------|-------------|--------|
-| 待处理 | `todo` | — | — |
-| 开发中 | `in_progress` | feature 分支已推送 | — |
-| 等待审查 | `in_review` | PR 已创建，待 Review | `pr_url`, `pr_number` |
-| 已合并 | `done` | PR 已合并，分支已删除 | — |
-| 已部署 | `done` | Tag 已推送 | `deploy_url` |
-| 阻塞 | `blocked` | — | `blocked_reason` |
+Autopilot 会在指定时间自动创建 Issue 并分配给 Agent，Agent 执行完毕后更新结果。
 
 ---
 
@@ -928,11 +933,17 @@ git log --graph --oneline --all --decorate
 
 ## 附录 B：参考资源
 
+### Multica 官方文档
+- [Multica 官方 GitHub 仓库](https://github.com/multica-ai/multica) — 开源托管 Agent 平台
+- [Multica 中文 README](https://github.com/multica-ai/multica/blob/main/README.zh-CN.md) — 官方中文使用指南
+- [Multica CLI 与 Daemon 命令参考](https://github.com/multica-ai/multica/blob/main/CLI_AND_DAEMON.md) — 完整 CLI 命令列表
+- [Multica 云服务](https://multica.ai) — 快速开始使用
+
+### 行业标准
 - [Git Flow 原始论文 — Vincent Driessen](https://nvie.com/posts/a-successful-git-branching-model/)
 - [语义化版本 2.0.0](https://semver.org/lang/zh-CN/)
 - [约定式提交 1.0.0](https://www.conventionalcommits.org/zh-hans/)
 - [GitHub 官方文档 — 管理分支保护规则](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches)
-- [Multica 平台文档](https://docs.multica.ai)
 
 ---
 
