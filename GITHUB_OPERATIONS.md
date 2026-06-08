@@ -57,20 +57,22 @@ master  ─────────●──────────────
 
 ## 2. 分支命名规范
 
+> ⚠️ **与 Multica 集成后，分支名必须包含 Multica Issue 编号**（如 `MES-42`），因为 Multica GitHub App 会自动扫描分支名中的 Issue 编号来实现 PR ↔ Issue 双向关联。详见 [10.1 官方 GitHub App 集成](#101-官方-github-app-集成pr--issue-自动关联)。
+
 ### 2.1 Feature 分支
 
 ```
-feature/<项目>-<功能简短描述>
+feature/<Issue编号>-<英文简短描述>
 ```
 
-- 使用 `kebab-case`（中划线分隔的小写单词）
-- 描述应简短明确，体现功能核心
-- 长度建议不超过 50 个字符
+- 分支前缀：**必须** 包含 Multica Issue 编号（如 `MES-42`），以实现 GitHub App 自动关联
+- 描述使用 `kebab-case`（中划线分隔的小写单词），描述功能核心
+- 总长度建议不超过 72 个字符
 
 **示例：**
-- `feature/mes-add-work-order-module`
-- `feature/mes-page-dashboard-refresh`
-- `feature/mes-api-export-endpoint`
+- `feature/MES-42-work-order-page`
+- `feature/MES-43-dashboard-refresh`
+- `feature/MES-45-data-export`
 
 ### 2.2 Release 分支
 
@@ -80,6 +82,7 @@ release/<语义化版本号>
 
 - 遵循 [SemVer 2.0](https://semver.org/) 规范
 - 格式：`主版本.次版本.修订号`
+- Release 分支通常不绑定单个 Issue，而是对应一次发布计划
 
 **示例：**
 - `release/1.0.0`
@@ -89,16 +92,16 @@ release/<语义化版本号>
 ### 2.3 Hotfix 分支
 
 ```
-hotfix/<问题简述>
+hotfix/<Issue编号>-<英文简短描述>
 ```
 
-- 使用 `kebab-case`
-- 描述应反映修复内容
+- 分支前缀：**必须** 包含 Multica Issue 编号，实现自动关联
+- 描述使用 `kebab-case`，反映修复内容
 
 **示例：**
-- `hotfix/login-npe-fix`
-- `hotfix/prod-db-connection-leak`
-- `hotfix/null-pointer-on-report`
+- `hotfix/MES-55-login-npe`
+- `hotfix/MES-57-prod-db-connection-leak`
+- `hotfix/MES-60-null-pointer-on-report`
 
 ---
 
@@ -826,7 +829,7 @@ dist/
 # 从最新的 develop 创建 feature 分支
 git checkout develop
 git pull
-git checkout -b feature/mes-page-add-work-order-page
+git checkout -b feature/MES-42-work-order-page
 
 # 开发过程中保持同步
 git fetch origin
@@ -837,7 +840,7 @@ git add .
 git commit -m "feat(mes-page): add work order detail page"
 
 # 推送
-git push -u origin feature/mes-page-add-work-order-page
+git push -u origin feature/MES-42-work-order-page
 
 # → 在 GitHub 上创建 PR
 ```

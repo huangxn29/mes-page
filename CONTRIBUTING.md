@@ -5,7 +5,7 @@
 ## 快速开始
 
 1. Fork 本仓库
-2. 基于 `develop` 创建你的功能分支：`git checkout -b feature/mes-page-<your-feature> develop`
+2. 基于 `develop` 创建包含 Issue 编号的功能分支：`git checkout -b feature/MES-<issue-number>-<your-feature> develop`
 3. 提交代码（遵循约定式提交规范）
 4. 创建 Pull Request 到 `develop` 分支
 
