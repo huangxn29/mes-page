@@ -1,72 +1,25 @@
-# CLAUDE.md
+# MES-Page
 
-此文件为 Claude Code (claude.ai/code) 在此仓库中工作时提供指导。
+前端项目（React / TypeScript）。
 
-## 项目概述
+## 命令
+- Dev: `npm run dev`
+- Build: `npm run build`
+- Test: `npm test`
+- Lint: `npm run lint`
 
-mes-page 是制造执行系统（MES）的前端页面项目。
+## Git 规范（精简版）
+- **分支模型**: Git Flow — `master` / `develop` / `feature/*` / `release/*` / `hotfix/*`
+- **分支命名**: `feature/<MES-编号>-<描述>` / `hotfix/<MES-编号>-<描述>` （**必须包含 Issue 编号**，Multica GitHub App 通过分支名自动关联 Issue）
+- **提交格式**: 约定式提交 — `feat:` `fix:` `docs:` `refactor:` `chore:` `test:`
+- **合并策略**: feature→develop 用 Squash Merge；release/hotfix→master 用 Merge Commit
+- **PR 前**: 运行 lint + build，通过后再提交
+- **红线**: 永远不要直接 push 到 `master` 或 `develop`
 
-- **GitHub**: `https://github.com/huangxn29/mes-page.git`
-- **当前分支**: `develop`（主开发分支）
-
-> 当前仓库处于初始阶段，尚未设置源代码、构建系统或依赖项。
-
----
-
-## Git Flow 工作流
-
-本项目采用 **Git Flow** 分支模型进行版本控制。
-
-### 分支策略
-
-| 分支 | 命名 | 来源 | 合并目标 | 说明 |
-|------|------|------|----------|------|
-| `master` | `master` | — | — | 生产环境，只接受 `release` / `hotfix` 合并 |
-| `develop` | `develop` | — | — | 集成分支，包含下一个版本全部功能 |
-| Feature | `feature/<描述>` | `develop` | `develop` | 功能开发 |
-| Release | `release/<版本>` | `develop` | `master` + `develop` | 发布准备、Bug 修复、文档更新 |
-| Hotfix | `hotfix/<描述>` | `master` | `master` + `develop` | 生产环境紧急修复 |
-
-### 常用操作
-
-```bash
-# 开发新功能
-git checkout develop && git checkout -b feature/xxx
-# ... 开发完成后
-git checkout develop && git merge --no-ff feature/xxx && git branch -d feature/xxx
-
-# 发布版本
-git checkout develop && git checkout -b release/v1.0.0
-# ... 修复 Bug、更新版本号
-git checkout master && git merge --no-ff release/v1.0.0 && git tag -a v1.0.0
-git checkout develop && git merge --no-ff release/v1.0.0 && git branch -d release/v1.0.0
-
-# 紧急修复
-git checkout master && git checkout -b hotfix/xxx
-# ... 修复完成
-git checkout master && git merge --no-ff hotfix/xxx && git tag -a v1.0.1
-git checkout develop && git merge --no-ff hotfix/xxx && git branch -d hotfix/xxx
-```
-
-### 提交信息格式
-
-```
-<type>(<scope>): <subject>
-
-<body>
-```
-
-- **type**: `feat` | `fix` | `docs` | `refactor` | `test` | `chore`
-- **scope**: 影响范围（可选）
-- **subject**: 不超过 50 字
-
-### 版本号规范
-
-遵循 [SemVer](https://semver.org/)：`v主版本.次版本.修订号`
-
----
-
-## 当前状态
-
-- 项目正在初始化，尚未选型技术栈
-- **待办**: 选定前端框架、构建工具、测试框架后，补充对应的开发命令
+## 资源
+- [完整 Git 操作规范](./GITHUB_OPERATIONS.md)
+- [PR 模板](./.github/PULL_REQUEST_TEMPLATE.md)
+- 分支/提交规范: `/git-workflow` (slash command)
+- 发布流程: `/release`
+- 热修复流程: `/hotfix`
+- Code Review: `/review`
