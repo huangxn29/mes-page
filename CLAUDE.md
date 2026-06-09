@@ -1,5 +1,17 @@
 # MES-Page
 
+> ⚠️ **Git Flow 强制规范 — 每次操作前必须阅读**
+> 本仓库所有分支创建、提交、推送、合并操作，**必须严格遵循** `.claude/rules/git-workflow.md` 中的规范。
+>
+> **Agent 必须执行的红线：**
+> 1. 分支名 **必须包含 Issue 编号**：`feature/MES-编号-描述` / `hotfix/MES-编号-描述`
+> 2. 提交信息必须使用 **约定式提交**：`<type>(<scope>): <desc>`
+> 3. **禁止直接 push** 到 `master` / `develop` / `main`，必须走 Pull Request
+> 4. 合并策略：feature→develop 用 Squash Merge；release/hotfix→master 用 Merge Commit
+> 5. 本仓库已配置 `.claude/hooks/` git 钩子，违规操作会被自动拦截
+>
+> 使用 `/git-workflow` 查看完整规范。
+
 前端项目（React / TypeScript）。
 
 ## 命令
