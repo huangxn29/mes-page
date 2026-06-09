@@ -18,7 +18,7 @@
 | Code Review 标准 | `/review` | slash command |
 | 发布流程 | `/release` | slash command |
 | 热修复流程 | `/hotfix` | slash command |
-| 完整参考文档 | [GITHUB_OPERATIONS.md](GITHUB_OPERATIONS.md) | 手动查阅 |
+| 完整参考文档 | [.claude/rules/git-workflow.md](.claude/rules/git-workflow.md) | 手动查阅 |
 
 ## 关键红线
 
