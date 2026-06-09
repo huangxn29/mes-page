@@ -1,0 +1,85 @@
+#!/bin/sh
+# Git pre-push hook — validates branch naming and protects main/develop
+# Managed by MES project — do not edit manually
+
+PROTECTED="main master develop"
+
+while read local_ref local_sha remote_ref remote_sha; do
+    # Skip branch deletion
+    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+        continue
+    fi
+
+    BRANCH=$(echo "$remote_ref" | sed 's|refs/heads/||')
+
+    # Skip if not a branch push (e.g. tag push)
+    [ -z "$BRANCH" ] && continue
+
+    # ── Block direct push to protected branches ──────────────────
+    for p in $PROTECTED; do
+        if [ "$BRANCH" = "$p" ]; then
+            echo ""
+            echo "  ⛔ ERROR: 禁止直接推送至 '$BRANCH' 分支"
+            echo "  ─────────────────────────────────────────"
+            echo "  请通过 Pull Request 合并代码到 $BRANCH"
+            echo ""
+            exit 1
+        fi
+    done
+
+    # ── Validate branch naming ───────────────────────────────────
+    case "$BRANCH" in
+        feature/*)
+            if ! echo "$BRANCH" | grep -qE "^feature/[A-Z]+-[0-9]+"; then
+                echo ""
+                echo "  ⛔ ERROR: Feature 分支名必须包含 Issue 编号"
+                echo "  ─────────────────────────────────────────────"
+                echo "  格式: feature/<PROJECT-ID>-<description>"
+                echo "  示例: feature/MES-42-work-order-crud"
+                echo "  实际: $BRANCH"
+                echo ""
+                exit 1
+            fi
+            ;;
+        hotfix/*)
+            if ! echo "$BRANCH" | grep -qE "^hotfix/[A-Z]+-[0-9]+"; then
+                echo ""
+                echo "  ⛔ ERROR: Hotfix 分支名必须包含 Issue 编号"
+                echo "  ─────────────────────────────────────────────"
+                echo "  格式: hotfix/<PROJECT-ID>-<description>"
+                echo "  示例: hotfix/MES-55-login-npe"
+                echo "  实际: $BRANCH"
+                echo ""
+                exit 1
+            fi
+            ;;
+        release/*)
+            if ! echo "$BRANCH" | grep -qE "^release/[0-9]+\.[0-9]+\.[0-9]+"; then
+                echo ""
+                echo "  ⛔ ERROR: Release 分支名必须符合 SemVer 版本号"
+                echo "  ──────────────────────────────────────────────"
+                echo "  格式: release/<major>.<minor>.<patch>"
+                echo "  示例: release/1.2.0"
+                echo "  实际: $BRANCH"
+                echo ""
+                exit 1
+            fi
+            ;;
+        agent/* | dependabot/*)
+            # Agent and dependabot branches are allowed without issue ID
+            ;;
+        main | master | develop)
+            # Already caught above
+            ;;
+        *)
+            echo ""
+            echo "  ⛔ ERROR: 分支名 '$BRANCH' 不符合命名规范"
+            echo "  ─────────────────────────────────────────────"
+            echo "  允许的前缀: feature/  hotfix/  release/  agent/  dependabot/"
+            echo ""
+            exit 1
+            ;;
+    esac
+done
+
+exit 0

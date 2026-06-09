@@ -1,0 +1,43 @@
+#!/bin/sh
+# Git commit-msg hook — enforces Conventional Commits format
+# Managed by MES project — do not edit manually
+
+COMMIT_MSG_FILE="$1"
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Allow merge commits (format: "Merge branch 'xxx' into yyy")
+echo "$COMMIT_MSG" | grep -Eq "^(Merge|fixup!|squash!)" && exit 0
+
+# Allow revert commits
+echo "$COMMIT_MSG" | grep -Eq "^Revert " && exit 0
+
+FIRST_LINE=$(echo "$COMMIT_MSG" | head -n1)
+
+# Validate format: type(scope): desc OR type: desc
+if ! echo "$FIRST_LINE" | grep -qE "^(feat|fix|docs|style|refactor|perf|test|build|ci|chore)(\([a-zA-Z0-9._-]+\))?: .+"; then
+    echo ""
+    echo "  ⛔ ERROR: 提交信息不符合约定式提交（Conventional Commits）规范"
+    echo "  ───────────────────────────────────────────────────────"
+    echo "  格式: <type>(<scope>): <description>"
+    echo ""
+    echo "  有效 type: feat | fix | docs | style | refactor | perf | test | build | ci | chore"
+    echo ""
+    echo "  示例:"
+    echo "    feat(mes): add work order CRUD API"
+    echo "    fix(mes-page): resolve NPE on dashboard"
+    echo "    docs(readme): update deployment guide"
+    echo "    chore(release): prepare release 1.0.0"
+    echo ""
+    exit 1
+fi
+
+# Validate subject line max length (72 chars)
+LEN=$(echo "$FIRST_LINE" | wc -c | tr -d ' ')
+if [ "$LEN" -gt 72 ]; then
+    echo ""
+    echo "  ⛔ ERROR: 提交信息首行超过 72 字符（当前 ${LEN} 字符）"
+    echo ""
+    exit 1
+fi
+
+exit 0
