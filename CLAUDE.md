@@ -17,7 +17,7 @@
 - **红线**: 永远不要直接 push 到 `master` 或 `develop`
 
 ## 资源
-- [完整 Git 操作规范](./GITHUB_OPERATIONS.md)
+- [完整 Git 规范](./.claude/rules/git-workflow.md)
 - [PR 模板](./.github/PULL_REQUEST_TEMPLATE.md)
 - 分支/提交规范: `/git-workflow` (slash command)
 - 发布流程: `/release`
